@@ -9,6 +9,7 @@ from pathlib import Path
 import typing as t
 import json
 import re
+import string
 
 from .ping import Ping, parse_timepie
 
@@ -37,9 +38,15 @@ def _find_timepie_part(msg: email.message.Message) -> t.Sequence[Ping]:
         return parse_timepie(lines)
   raise ValueError('given message has no timepie.log part')
 
+def _build_gmail_query(sender: str) -> str:
+  if not (set(sender) <= set(string.ascii_letters + string.digits + '.-@')):
+    raise NotImplementedError("don't know how to deal with funny characters in sender")
+  return f'X-GM-RAW "has:attachment from:\\"{sender}\\""'
+
 def find_timepie_attachments(
   imap: imaplib.IMAP4_SSL,
   should_ignore_msg: t.Callable[[MsgId], bool],
+  sender: str,
   is_gmail: bool = False,
 ) -> t.Mapping[MsgId, t.Sequence[Ping]]:
 
@@ -50,7 +57,12 @@ def find_timepie_attachments(
   if status != 'OK':
     raise RuntimeError(f'select failed: {details}')
 
-  status, details = imap.search(None, 'X-GM-RAW "has:attachment subject:timepie.log"' if is_gmail else 'HEADER Subject "timepie.log"')
+  query = (
+    _build_gmail_query(sender)
+    if is_gmail else
+    f'HEADER FROM {json.dumps(sender)}'
+  )
+  status, details = imap.search(None, query)
   if status != 'OK':
     raise RuntimeError(f'bad status on search: {status}')
   msg_ids = set(details[0].decode('utf-8').split(' '))

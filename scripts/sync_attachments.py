@@ -33,6 +33,7 @@ def main(args):
   timepie_attachments_by_id = find_timepie_attachments(
     imap,
     should_ignore_msg=history.is_msg_processed,
+    sender=config['imap']['sender'],
     is_gmail=(config['imap']['host']=='imap.gmail.com'),
   )
   for msg_id, pings in timepie_attachments_by_id.items():
