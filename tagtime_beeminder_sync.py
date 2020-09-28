@@ -74,7 +74,6 @@ def load_scorers(python_code: str) -> t.Mapping[GoalName, t.Callable[[Ping], flo
   exec(python_code, glob, loc)
   return loc['SCORERS']
 
-assert load_scorers('SCORERS = {"test-goal": lambda ping: 0.75 if "foo" in ping.tags else 0}')['test-goal'](Ping(unix_time=0, tags=frozenset({'foo'}), comment='')) == 0.75
 
 def demo():
   import argparse
