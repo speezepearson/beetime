@@ -68,8 +68,8 @@ class BeeminderClient:
         logger.debug(f'response: {resp.text!r}')
 
 def load_scorers(python_code: str) -> t.Mapping[GoalName, t.Callable[[Ping], float]]:
-  loc: t.Mapping
-  glob: t.Mapping
+  loc: t.Mapping[str, t.Any]
+  glob: t.Mapping[str, t.Any]
   loc = glob = {}
   exec(python_code, glob, loc)
   return loc['SCORERS']
