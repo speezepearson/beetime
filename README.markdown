@@ -19,5 +19,5 @@ To ramp up quickly: look at `scripts/sync_attachments.py`. The core logic is in 
 To test:
 
 ```bash
-pytest && (cd .. && mypy beetime)
+mypy beetime/ && pytest
 ```
