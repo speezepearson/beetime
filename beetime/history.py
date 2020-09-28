@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import typing as t
 
 _PROCESSED_MSG_IDS_KEY = 'processed_msg_ids'
 
@@ -16,6 +17,8 @@ class History:
     self._processed_msg_ids.add(msg_id)
     self._commit()
 
-  def _commit(self) -> None:
-    json.dump({_PROCESSED_MSG_IDS_KEY: list(sorted(self._processed_msg_ids))}, self.path.open('w'))
+  def to_json(self) -> str:
+    return json.dumps({_PROCESSED_MSG_IDS_KEY: list(sorted(self._processed_msg_ids))})
 
+  def _commit(self) -> None:
+    self.path.write_text(self.to_json())
