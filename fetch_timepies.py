@@ -1,3 +1,6 @@
+"""Tools for fetching TagTime data from email.
+"""
+
 import email
 import email.message
 import imaplib
@@ -7,27 +10,15 @@ import typing as t
 import json
 import re
 
+from .ping import Ping, parse_timepie
+
+MsgId = str
+
 logger = logging.getLogger(__name__)
 
 
-class History:
-  def __init__(self, path: Path) -> None:
-    self.path = path
-    j = json.load(path.open()) if path.exists() else {}
-    self._processed_msg_ids = set(j.get('processed_msg_ids', []))
-
-  def is_msg_processed(self, msg_id: str) -> bool:
-    return msg_id in self._processed_msg_ids
-
-  def commit_msg(self, msg_id: str) -> None:
-    self._processed_msg_ids.add(msg_id)
-    self._commit()
-
-  def _commit(self) -> None:
-    json.dump({'processed_msg_ids': list(sorted(self._processed_msg_ids))}, self.path.open('w'))
-
-
 def build_imap(host: str, user: str, password: str) -> imaplib.IMAP4_SSL:
+  """Utility to create an IMAP instance and log it in."""
   imap = imaplib.IMAP4_SSL(host)
   status, details = imap.login(user, password)
   if status != 'OK':
@@ -36,19 +27,20 @@ def build_imap(host: str, user: str, password: str) -> imaplib.IMAP4_SSL:
   return imap
 
 
-def find_timepie_part(msg: email.message.Message) -> str:
+def _find_timepie_part(msg: email.message.Message) -> t.Sequence[Ping]:
+  """Try to find which part of a potentially nested multipart message contains TagTime data."""
   for part in msg.walk():
     payload = part.get_payload(decode=True)
     if payload is not None:
       if re.match(rb'^[0-9]{7,} [^\[]*\[.*\]\n', payload):
-        return payload.decode('utf-8')
+        return parse_timepie(payload.decode('utf-8').splitlines())
   raise ValueError('given message has no timepie.log part')
 
 def find_timepie_attachments(
   imap: imaplib.IMAP4_SSL,
-  should_ignore_msg: t.Callable[[str], bool],
+  should_ignore_msg: t.Callable[[MsgId], bool],
   is_gmail: bool = False,
-) -> t.Mapping[str, str]:
+) -> t.Mapping[MsgId, t.Sequence[Ping]]:
 
   status: t.Any
   details: t.Any
@@ -76,7 +68,7 @@ def find_timepie_attachments(
       raise RuntimeError(f'bad status on fetch: {status}')
     msg = email.message_from_bytes(msg_info[0][1])
     try:
-      result[msg_id] = find_timepie_part(msg)
+      result[msg_id] = _find_timepie_part(msg)
     except ValueError:
       logger.info(f'msg {msg_id} has no timepie part')
       continue
