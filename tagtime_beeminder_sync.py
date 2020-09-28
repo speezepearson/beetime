@@ -20,6 +20,7 @@ class BeeminderClient:
     self.token = token
 
   def post_pings(self, goal: GoalName, ping_values: t.Mapping[Ping, float]) -> requests.Response:
+    """Upload a bunch of pings and values to a particular Beeminder goal."""
     payload = [
       {
         'timestamp': ping.unix_time,
@@ -47,6 +48,7 @@ class BeeminderClient:
     pings: t.Iterable[Ping],
     scorers: t.Mapping[GoalName, t.Callable[[Ping], float]],
   ) -> None:
+    """Compute the values for all pings for all goals, and upload the data, overwriting any previous data for the given pings."""
     for goal, score in scorers.items():
       # resp_json = requests.get(f'https://www.beeminder.com/api/v1/users/{beeminder_user}/goals/{goal}/datapoints.json?auth_token={beeminder_token}').json()
       # datapoints_by_time = {
@@ -68,21 +70,12 @@ class BeeminderClient:
         logger.debug(f'response: {resp.text!r}')
 
 def load_scorers(python_code: str) -> t.Mapping[GoalName, t.Callable[[Ping], float]]:
+  """Parse a `{goal: (ping -> value)}` mapping from Python source code.
+
+  The given `python_code` can be arbitrary Python code, as long as it defines a variable `SCORERS` of the right type.
+  """
   loc: t.Mapping[str, t.Any]
   glob: t.Mapping[str, t.Any]
   loc = glob = {}
   exec(python_code, glob, loc)
   return loc['SCORERS']
-
-
-def demo():
-  import argparse
-  parser = argparse.ArgumentParser()
-  parser.add_argument('-v', '--verbose', action='count', default=0)
-  args = parser.parse_args()
-  logging.basicConfig(level=logging.WARN if args.verbose==0 else logging.INFO if args.verbose==1 else logging.DEBUG)
-  client = BeeminderClient(user='speeze', token=open('token.secret').read())
-  client.sync(timepie_lines=sys.stdin, scorers={'test-goal': lambda ping: (0.75 if 'sleep' in ping.tags else None)})
-
-if __name__ == "__main__":
-  demo()
