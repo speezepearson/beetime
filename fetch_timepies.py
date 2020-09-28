@@ -31,9 +31,10 @@ def _find_timepie_part(msg: email.message.Message) -> t.Sequence[Ping]:
   """Try to find which part of a potentially nested multipart message contains TagTime data."""
   for part in msg.walk():
     payload = part.get_payload(decode=True)
-    if payload is not None:
-      if re.match(rb'^[0-9]{7,} [^\[]*\[.*\]\n', payload):
-        return parse_timepie(payload.decode('utf-8').splitlines())
+    if payload:
+      lines = payload.decode('utf-8').splitlines()
+      if lines and all(re.match(r'^[0-9]{7,} [^\[]*\[.*\]$', line) for line in lines):
+        return parse_timepie(lines)
   raise ValueError('given message has no timepie.log part')
 
 def find_timepie_attachments(
