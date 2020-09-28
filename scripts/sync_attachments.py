@@ -9,11 +9,13 @@ from beetime.fetch_timepies import build_imap, find_timepie_attachments
 
 logger = logging.getLogger(__name__)
 
+_CONFIG_ROOT = Path.home() / '.config' / 'beetime'
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose', action='count', default=0)
-parser.add_argument('--credentials_file', type=Path, default=Path.home() / '.beetime-credentials.json', help='contains e.g. {"host":"imap.gmail.com", "user":"my.username", "password":"asdfqwerzxcv"}')
-parser.add_argument('--history_file', type=Path, default=Path.home() / '.beetime-history.json')
-parser.add_argument('--scorers_file', type=Path, default=Path.home() / '.beetime-scorers.py')
+parser.add_argument('--config_file', type=Path, default=_CONFIG_ROOT / 'config.json')
+parser.add_argument('--history_file', type=Path, default=_CONFIG_ROOT / 'history.json')
+parser.add_argument('--scorers_file', type=Path, default=_CONFIG_ROOT / 'scorers.py')
 
 
 def main(args):
@@ -24,14 +26,14 @@ def main(args):
 
   history = History(path=args.history_file)
 
-  _creds = json.load(args.credentials_file.open())
-  imap = build_imap(host=_creds['imap']['host'], user=_creds['imap']['user'], password=_creds['imap']['password'])
+  config = json.load(args.config_file.open())
+  imap = build_imap(host=config['imap']['host'], user=config['imap']['user'], password=config['imap']['password'])
 
-  client = BeeminderClient(user=_creds['beeminder']['user'], token=_creds['beeminder']['token'])
+  client = BeeminderClient(user=config['beeminder']['user'], token=config['beeminder']['token'])
   timepie_attachments_by_id = find_timepie_attachments(
     imap,
     should_ignore_msg=history.is_msg_processed,
-    is_gmail=(_creds['imap']['host']=='imap.gmail.com'),
+    is_gmail=(config['imap']['host']=='imap.gmail.com'),
   )
   for msg_id, pings in timepie_attachments_by_id.items():
     pings = list(pings)
